@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart'; // Import Firebase Realtime Database
 
 class AddUserPopUp extends StatelessWidget {
   final TextEditingController _firstNameController = TextEditingController();
@@ -8,7 +8,7 @@ class AddUserPopUp extends StatelessWidget {
   final TextEditingController _idNumberController = TextEditingController();
   final TextEditingController _bodyNumberController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Firestore instance
+  final DatabaseReference _database = FirebaseDatabase.instance.reference(); // Realtime Database instance
 
   @override
   Widget build(BuildContext context) {
@@ -27,19 +27,19 @@ class AddUserPopUp extends StatelessWidget {
           ),
           TextField(
             controller: _birthdateController,
-            decoration:const InputDecoration(labelText: 'BirthDate'),
+            decoration: const InputDecoration(labelText: 'BirthDate'),
           ),
           TextField(
             controller: _idNumberController,
-            decoration:const InputDecoration(labelText: 'ID Number'),
+            decoration: const InputDecoration(labelText: 'ID Number'),
           ),
           TextField(
             controller: _bodyNumberController,
-            decoration:const InputDecoration(labelText: 'Body Number'),
+            decoration: const InputDecoration(labelText: 'Body Number'),
           ),
           TextField(
             controller: _emailController,
-            decoration:const InputDecoration(labelText: 'Email'),
+            decoration: const InputDecoration(labelText: 'Email'),
           ),
           // Add more text fields for other user information
         ],
@@ -57,12 +57,12 @@ class AddUserPopUp extends StatelessWidget {
             };
 
             try {
-              // Add user data to Firestore
-              await _firestore.collection('users').add(newUser);
-              print('User added to Firestore: $newUser');
+              // Add user data to Realtime Database
+              await _database.child('driversAccount').push().set(newUser);
+              print('User added to Realtime Database: $newUser');
               // Optionally, show a success message
             } catch (e) {
-              print('Error adding user to Firestore: $e');
+              print('Error adding user to Realtime Database: $e');
               // Handle error (e.g., display error message)
             }
 
@@ -71,7 +71,6 @@ class AddUserPopUp extends StatelessWidget {
           },
           child: Text('Save'),
         ),
-
         TextButton(
           onPressed: () {
             // Close the pop-up without saving

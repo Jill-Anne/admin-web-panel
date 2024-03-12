@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
+import 'package:firebase_database/firebase_database.dart'; // Import Firebase Realtime Database
 
 class AddDriverUserPage extends StatefulWidget {
   static const String id = "webPageDriverManagement";
@@ -11,46 +11,60 @@ class AddDriverUserPage extends StatefulWidget {
 }
 
 class _AddDriverUserPageState extends State<AddDriverUserPage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _birthdateController = TextEditingController();
   final TextEditingController _idNumberController = TextEditingController();
   final TextEditingController _bodyNumberController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _statusController = TextEditingController();
+  final DatabaseReference _database = FirebaseDatabase.instance.reference(); // Realtime Database instance
 
   List<Map<String, dynamic>> _driverUsers = []; // Define _driverUsers list
 
   @override
   void initState() {
     super.initState();
-    _fetchDriverUsers(); // Call method to fetch driver users from Firestore
+    _fetchDriverUsers(); // Call method to fetch driver users from Realtime Database
   }
 
-  void _fetchDriverUsers() {
-    _firestore
-        .collection('driverUsers')
-        .get()
-        .then((QuerySnapshot querySnapshot) {
-      setState(() {
-        _driverUsers = querySnapshot.docs
-            .map((doc) => doc.data() as Map<String, dynamic>)
-            .where((data) => data != null) // Filter out null values
-            .toList();
+void _fetchDriverUsers() {
+  _database.child('driversAccount').once().then((DatabaseEvent event) {
+    DataSnapshot dataSnapshot = event.snapshot;
+    Map<dynamic, dynamic>? data = dataSnapshot.value as Map<dynamic, dynamic>?;
+
+    if (data != null) {
+      List<Map<String, dynamic>> usersList = [];
+
+      data.forEach((key, value) {
+        usersList.add({...value, 'id': key}); // Add user ID to each user object
       });
+
+      setState(() {
+        _driverUsers = usersList;
+      });
+    } else {
+      setState(() {
+        _driverUsers = []; // Set _driverUsers to an empty list if no data is available
+      });
+    }
+  }).catchError((error) {
+    print('Error fetching driver users: $error');
+    // Handle error here
+    setState(() {
+      _driverUsers = []; // Set _driverUsers to an empty list if error occurs
     });
-  }
+  });
+}
+
 
   void _addDriverUser() async {
-    await _firestore.collection('driverUsers').add({
+    await _database.child('driversAccount').push().set({
       'firstName': _firstNameController.text,
       'lastName': _lastNameController.text,
       'birthdate': _birthdateController.text,
       'idNumber': _idNumberController.text,
       'bodyNumber': _bodyNumberController.text,
       'email': _emailController.text,
-      'status': _statusController.text,
     });
     _fetchDriverUsers(); // Fetch updated list of driver users
     _clearControllers();
@@ -63,7 +77,6 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
     _idNumberController.clear();
     _bodyNumberController.clear();
     _emailController.clear();
-    _statusController.clear();
   }
 
   @override
@@ -113,10 +126,6 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
                               controller: _emailController,
                               decoration: InputDecoration(labelText: 'Email'),
                             ),
-                            TextField(
-                              controller: _statusController,
-                              decoration: InputDecoration(labelText: 'Status'),
-                            ),
                           ],
                         ),
                       ),
@@ -151,7 +160,6 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
                 DataColumn(label: Text('ID Number')),
                 DataColumn(label: Text('Body Number')),
                 DataColumn(label: Text('Email')),
-                DataColumn(label: Text('Status')),
               ],
               rows: _buildUserRows(),
             ),
@@ -170,7 +178,6 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
         DataCell(Text(user['idNumber'])),
         DataCell(Text(user['bodyNumber'])),
         DataCell(Text(user['email'])),
-        DataCell(Text(user['status'])),
       ]);
     }).toList();
   }

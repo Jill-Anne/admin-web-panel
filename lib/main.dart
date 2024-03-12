@@ -7,13 +7,14 @@ void main() async{
   WidgetsFlutterBinding.ensureInitialized();
 await Firebase.initializeApp(
   options: FirebaseOptions(
-      authDomain: "add-users-admin.firebaseapp.com",
-      projectId: "add-users-admin",
-      storageBucket: "add-users-admin.appspot.com",
-      messagingSenderId: "660357140183",
-      appId: "1:660357140183:web:940b0b0ff28e6fc0dbea92",
-      measurementId: "G-NTJ6FKBQMM",
-      apiKey: ''
+  apiKey: "AIzaSyDtvRVetb6lZzxpIQQ8gqIGK1J2WOlBnok",
+  authDomain: "passenger-signuplogin.firebaseapp.com",
+  databaseURL: "https://passenger-signuplogin-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "passenger-signuplogin",
+  storageBucket: "passenger-signuplogin.appspot.com",
+  messagingSenderId: "755339267599",
+  appId: "1:755339267599:web:b6fae1da7711fc97e01d7a",
+  measurementId: "G-4H2JKHJB7F"
      ));
   runApp(const MyApp());
 }
