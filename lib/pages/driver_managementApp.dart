@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart'; // Import Firebase Realtime Database
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AddDriverUserPage extends StatefulWidget {
   static const String id = "webPageDriverManagement";
@@ -17,57 +18,109 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
   final TextEditingController _idNumberController = TextEditingController();
   final TextEditingController _bodyNumberController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final DatabaseReference _database = FirebaseDatabase.instance.reference(); // Realtime Database instance
+  final DatabaseReference _database = FirebaseDatabase.instance.reference();
 
-  List<Map<String, dynamic>> _driverUsers = []; // Define _driverUsers list
+  FirebaseAuth _auth = FirebaseAuth.instance;
+
+  List<Map<String, dynamic>> _driverUsers = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchDriverUsers(); // Call method to fetch driver users from Realtime Database
+    _fetchDriverUsers();
   }
 
-void _fetchDriverUsers() {
-  _database.child('driversAccount').once().then((DatabaseEvent event) {
-    DataSnapshot dataSnapshot = event.snapshot;
-    Map<dynamic, dynamic>? data = dataSnapshot.value as Map<dynamic, dynamic>?;
+  void _fetchDriverUsers() {
+    _database.child('driversAccount').once().then((DatabaseEvent event) {
+      DataSnapshot dataSnapshot = event.snapshot;
+      Map<dynamic, dynamic>? data = dataSnapshot.value as Map<dynamic, dynamic>?;
 
-    if (data != null) {
-      List<Map<String, dynamic>> usersList = [];
+      if (data != null) {
+        List<Map<String, dynamic>> usersList = [];
 
-      data.forEach((key, value) {
-        usersList.add({...value, 'id': key}); // Add user ID to each user object
-      });
+        data.forEach((key, value) {
+          if (value != null) {
+            usersList.add({...value, 'id': key});
+          }
+        });
 
+        setState(() {
+          _driverUsers = usersList;
+        });
+      } else {
+        setState(() {
+          _driverUsers = [];
+        });
+      }
+    }).catchError((error) {
+      print('Error fetching driver users: $error');
       setState(() {
-        _driverUsers = usersList;
+        _driverUsers = [];
       });
-    } else {
-      setState(() {
-        _driverUsers = []; // Set _driverUsers to an empty list if no data is available
-      });
-    }
-  }).catchError((error) {
-    print('Error fetching driver users: $error');
-    // Handle error here
-    setState(() {
-      _driverUsers = []; // Set _driverUsers to an empty list if error occurs
     });
-  });
-}
+  }
 
+  Future<bool> _authenticateWithCredentials(String email, String birthdate) async {
+    return email.isNotEmpty && birthdate.isNotEmpty;
+  }
 
   void _addDriverUser() async {
-    await _database.child('driversAccount').push().set({
-      'firstName': _firstNameController.text,
-      'lastName': _lastNameController.text,
-      'birthdate': _birthdateController.text,
-      'idNumber': _idNumberController.text,
-      'bodyNumber': _bodyNumberController.text,
-      'email': _emailController.text,
-    });
-    _fetchDriverUsers(); // Fetch updated list of driver users
-    _clearControllers();
+    try {
+      // Get values from text controllers
+      String firstName = _firstNameController.text.trim();
+      String lastName = _lastNameController.text.trim();
+      String birthdate = _birthdateController.text.trim();
+      String idNumber = _idNumberController.text.trim();
+      String bodyNumber = _bodyNumberController.text.trim();
+      String email = _emailController.text.trim();
+
+      // Validate input fields
+      if (firstName.isEmpty ||
+          lastName.isEmpty ||
+          birthdate.isEmpty ||
+          idNumber.isEmpty ||
+          bodyNumber.isEmpty ||
+          email.isEmpty) {
+        _showDialog(context, "Error", "Please fill in all fields.");
+        return;
+      }
+
+      // Authenticate with credentials
+      bool isAuthenticated = await _authenticateWithCredentials(email, birthdate);
+
+      if (isAuthenticated) {
+        UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+          email: email,
+          password: birthdate,
+        );
+
+        // Check if user creation was successful
+        if (userCredential.user != null) {
+          // Add user to the database
+          await _database.child('driversAccount').push().set({
+            'firstName': firstName,
+            'lastName': lastName,
+            'birthdate': birthdate,
+            'idNumber': idNumber,
+            'bodyNumber': bodyNumber,
+            'email': email,
+            'uid': userCredential.user!.uid,
+          });
+
+          // Fetch updated list of driver users and clear input fields
+          _fetchDriverUsers();
+          _clearControllers();
+          print("User added successfully.");
+        } else {
+          _showDialog(context, "Error", "Failed to create user.");
+        }
+      } else {
+        _showDialog(context, "Error", "Authentication failed. Please check your credentials.");
+      }
+    } catch (e) {
+      print("Error adding user: $e");
+      _showDialog(context, "Error", "Failed to add user: $e");
+    }
   }
 
   void _clearControllers() {
@@ -77,6 +130,24 @@ void _fetchDriverUsers() {
     _idNumberController.clear();
     _bodyNumberController.clear();
     _emailController.clear();
+  }
+
+  void _showDialog(BuildContext context, String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            child: Text('OK'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -151,7 +222,6 @@ void _fetchDriverUsers() {
               child: Text("+ Add new User"),
             ),
             SizedBox(height: 16.0),
-            // Table to display added driver users
             DataTable(
               columns: [
                 DataColumn(label: Text('First Name')),
@@ -172,12 +242,12 @@ void _fetchDriverUsers() {
   List<DataRow> _buildUserRows() {
     return _driverUsers.map((user) {
       return DataRow(cells: [
-        DataCell(Text(user['firstName'])),
-        DataCell(Text(user['lastName'])),
-        DataCell(Text(user['birthdate'])),
-        DataCell(Text(user['idNumber'])),
-        DataCell(Text(user['bodyNumber'])),
-        DataCell(Text(user['email'])),
+        DataCell(Text(user['firstName'] ?? '')),
+        DataCell(Text(user['lastName'] ?? '')),
+        DataCell(Text(user['birthdate'] ?? '')),
+        DataCell(Text(user['idNumber'] ?? '')),
+        DataCell(Text(user['bodyNumber'] ?? '')),
+        DataCell(Text(user['email'] ?? '')),
       ]);
     }).toList();
   }

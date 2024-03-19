@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart'; // Import Firebase Realtime Database
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AddUserPopUp extends StatelessWidget {
   final TextEditingController _firstNameController = TextEditingController();
@@ -8,77 +9,86 @@ class AddUserPopUp extends StatelessWidget {
   final TextEditingController _idNumberController = TextEditingController();
   final TextEditingController _bodyNumberController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final DatabaseReference _database = FirebaseDatabase.instance.reference(); // Realtime Database instance
+  final DatabaseReference _database = FirebaseDatabase.instance.reference();
+
+  AddUserPopUp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Add New User'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _firstNameController,
-            decoration: const InputDecoration(labelText: 'First Name'),
-          ),
-          TextField(
-            controller: _lastNameController,
-            decoration: const InputDecoration(labelText: 'Last Name'),
-          ),
-          TextField(
-            controller: _birthdateController,
-            decoration: const InputDecoration(labelText: 'BirthDate'),
-          ),
-          TextField(
-            controller: _idNumberController,
-            decoration: const InputDecoration(labelText: 'ID Number'),
-          ),
-          TextField(
-            controller: _bodyNumberController,
-            decoration: const InputDecoration(labelText: 'Body Number'),
-          ),
-          TextField(
-            controller: _emailController,
-            decoration: const InputDecoration(labelText: 'Email'),
-          ),
-          // Add more text fields for other user information
-        ],
+      title: const Text('Add New User'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: _firstNameController, decoration: const InputDecoration(labelText: 'First Name')),
+            TextField(controller: _lastNameController, decoration: const InputDecoration(labelText: 'Last Name')),
+            TextField(controller: _birthdateController, decoration: const InputDecoration(labelText: 'BirthDate')),
+            TextField(controller: _idNumberController, decoration: const InputDecoration(labelText: 'ID Number')),
+            TextField(controller: _bodyNumberController, decoration: const InputDecoration(labelText: 'Body Number')),
+            TextField(controller: _emailController, decoration: const InputDecoration(labelText: 'Email')),
+          ],
+        ),
       ),
       actions: [
-        ElevatedButton(
-          onPressed: () async {
-            final newUser = {
-              'firstName': _firstNameController.text,
-              'lastName': _lastNameController.text,
-              'birthDate': _birthdateController.text,
-              'idNumber': _idNumberController.text,
-              'bodyNumber': _bodyNumberController.text,
-              'email': _emailController.text,
-            };
-
-            try {
-              // Add user data to Realtime Database
-              await _database.child('driversAccount').push().set(newUser);
-              print('User added to Realtime Database: $newUser');
-              // Optionally, show a success message
-            } catch (e) {
-              print('Error adding user to Realtime Database: $e');
-              // Handle error (e.g., display error message)
-            }
-
-            // Close the pop-up
-            Navigator.of(context).pop();
-          },
-          child: Text('Save'),
-        ),
         TextButton(
-          onPressed: () {
-            // Close the pop-up without saving
-            Navigator.of(context).pop();
-          },
-          child: Text('Cancel'),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => _addUser(context),
+          child: const Text('Save'),
         ),
       ],
+    );
+  }
+
+Future<void> _addUser(BuildContext context) async {
+  final String email = _emailController.text.trim();
+  final String password = "Date_" + _birthdateController.text.trim(); // Adjust as needed
+
+  try {
+    UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: password);
+    print("User successfully added to Firebase Auth with UID: ${userCredential.user!.uid}");
+
+    await _database.child('driversAccount').push().set({
+      'firstName': _firstNameController.text,
+      'lastName': _lastNameController.text,
+      'birthDate': _birthdateController.text,
+      'idNumber': _idNumberController.text,
+      'bodyNumber': _bodyNumberController.text,
+      'email': email,
+      'uid': userCredential.user!.uid,
+    });
+    print("User details successfully added to Realtime Database.");
+
+    Navigator.of(context).pop(); // Close the dialog
+    _showDialog(context, "Success", "User added successfully.");
+  } catch (e) {
+    print("Error adding user: $e");
+    Navigator.of(context).pop(); // Close the dialog
+    _showDialog(context, "Error", e.toString());
+  }
+}
+
+
+  void _showDialog(BuildContext context, String title, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }
