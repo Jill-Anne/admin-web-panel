@@ -54,7 +54,7 @@ Future<void> _addUser(BuildContext context) async {
     await _database.child('driversAccount').push().set({
       'firstName': _firstNameController.text,
       'lastName': _lastNameController.text,
-      'birthDate': _birthdateController.text,
+      'birthDate': _birthdateController.text, // Store birthdate as a string
       'idNumber': _idNumberController.text,
       'bodyNumber': _bodyNumberController.text,
       'email': email,

@@ -18,6 +18,7 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
   final TextEditingController _idNumberController = TextEditingController();
   final TextEditingController _bodyNumberController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneNumberController = TextEditingController();
   final DatabaseReference _database = FirebaseDatabase.instance.reference();
 
   FirebaseAuth _auth = FirebaseAuth.instance;
@@ -33,13 +34,13 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
   void _fetchDriverUsers() {
     _database.child('driversAccount').once().then((DatabaseEvent event) {
       DataSnapshot dataSnapshot = event.snapshot;
-      Map<dynamic, dynamic>? data = dataSnapshot.value as Map<dynamic, dynamic>?;
+      dynamic data = dataSnapshot.value;
 
-      if (data != null) {
+      if (data != null && data is Map<dynamic, dynamic>) {
         List<Map<String, dynamic>> usersList = [];
 
         data.forEach((key, value) {
-          if (value != null) {
+          if (value != null && value is Map<dynamic, dynamic>) {
             usersList.add({...value, 'id': key});
           }
         });
@@ -51,6 +52,7 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
         setState(() {
           _driverUsers = [];
         });
+        print('No valid data found in driversAccount node.');
       }
     }).catchError((error) {
       print('Error fetching driver users: $error');
@@ -60,7 +62,8 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
     });
   }
 
-  Future<bool> _authenticateWithCredentials(String email, String birthdate) async {
+  Future<bool> _authenticateWithCredentials(
+      String email, String birthdate) async {
     return email.isNotEmpty && birthdate.isNotEmpty;
   }
 
@@ -73,6 +76,7 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
       String idNumber = _idNumberController.text.trim();
       String bodyNumber = _bodyNumberController.text.trim();
       String email = _emailController.text.trim();
+      String phoneNumber = _phoneNumberController.text.trim();
 
       // Validate input fields
       if (firstName.isEmpty ||
@@ -80,16 +84,19 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
           birthdate.isEmpty ||
           idNumber.isEmpty ||
           bodyNumber.isEmpty ||
-          email.isEmpty) {
+          email.isEmpty ||
+          phoneNumber.isEmpty) {
         _showDialog(context, "Error", "Please fill in all fields.");
         return;
       }
 
       // Authenticate with credentials
-      bool isAuthenticated = await _authenticateWithCredentials(email, birthdate);
+      bool isAuthenticated =
+          await _authenticateWithCredentials(email, birthdate);
 
       if (isAuthenticated) {
-        UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        UserCredential userCredential =
+            await _auth.createUserWithEmailAndPassword(
           email: email,
           password: birthdate,
         );
@@ -104,6 +111,7 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
             'idNumber': idNumber,
             'bodyNumber': bodyNumber,
             'email': email,
+            'phoneNumber': phoneNumber,
             'uid': userCredential.user!.uid,
           });
 
@@ -115,7 +123,8 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
           _showDialog(context, "Error", "Failed to create user.");
         }
       } else {
-        _showDialog(context, "Error", "Authentication failed. Please check your credentials.");
+        _showDialog(context, "Error",
+            "Authentication failed. Please check your credentials.");
       }
     } catch (e) {
       print("Error adding user: $e");
@@ -130,6 +139,7 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
     _idNumberController.clear();
     _bodyNumberController.clear();
     _emailController.clear();
+    _phoneNumberController.clear();
   }
 
   void _showDialog(BuildContext context, String title, String message) {
@@ -175,27 +185,37 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
                           children: [
                             TextField(
                               controller: _firstNameController,
-                              decoration: InputDecoration(labelText: 'First Name'),
+                              decoration:
+                                  InputDecoration(labelText: 'First Name'),
                             ),
                             TextField(
                               controller: _lastNameController,
-                              decoration: InputDecoration(labelText: 'Last Name'),
+                              decoration:
+                                  InputDecoration(labelText: 'Last Name'),
                             ),
                             TextField(
                               controller: _birthdateController,
-                              decoration: InputDecoration(labelText: 'Birthdate'),
+                              decoration:
+                                  InputDecoration(labelText: 'Birthdate'),
                             ),
                             TextField(
                               controller: _idNumberController,
-                              decoration: InputDecoration(labelText: 'ID Number'),
+                              decoration:
+                                  InputDecoration(labelText: 'ID Number'),
                             ),
                             TextField(
                               controller: _bodyNumberController,
-                              decoration: InputDecoration(labelText: 'Body Number'),
+                              decoration:
+                                  InputDecoration(labelText: 'Body Number'),
                             ),
                             TextField(
                               controller: _emailController,
                               decoration: InputDecoration(labelText: 'Email'),
+                            ),
+                            TextField(
+                              controller: _phoneNumberController,
+                              decoration:
+                                  InputDecoration(labelText: 'Phone Number'),
                             ),
                           ],
                         ),
@@ -230,6 +250,7 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
                 DataColumn(label: Text('ID Number')),
                 DataColumn(label: Text('Body Number')),
                 DataColumn(label: Text('Email')),
+                DataColumn(label: Text('Phone Number')),
               ],
               rows: _buildUserRows(),
             ),
@@ -248,6 +269,7 @@ class _AddDriverUserPageState extends State<AddDriverUserPage> {
         DataCell(Text(user['idNumber'] ?? '')),
         DataCell(Text(user['bodyNumber'] ?? '')),
         DataCell(Text(user['email'] ?? '')),
+        DataCell(Text(user['phoneNumber'] ?? '')),
       ]);
     }).toList();
   }
