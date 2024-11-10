@@ -462,7 +462,8 @@ class _DriversPageState extends State<DriversPage> {
     
       await newDriverRef.set(newDriver.toJson());
 
-      
+       // Send email verification
+    await _sendEmailVerification(userCredential.user!);
 
       _fetchDriversData(); 
       Navigator.of(context).pop(); 
@@ -487,4 +488,20 @@ class _DriversPageState extends State<DriversPage> {
       );
     }
   }
+
+  
+Future<void> _sendEmailVerification(User user) async {
+  try {
+    await user.sendEmailVerification();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Verification email sent!')),
+    );
+  } catch (e) {
+    print('Error sending email verification: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error sending verification email: $e')),
+    );
+  }
+}
+
 }
